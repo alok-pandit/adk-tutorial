@@ -35,7 +35,6 @@ def get_instructions(context: ReadonlyContext) -> str:
 
 root_agent = Agent(
     name="welcome_agent_advanced",
-    model="gemini-2.5-pro",
     description="A helpful assistant for user questions.",
     instruction=get_instructions,
     before_agent_callback=log_startup,
