@@ -1,10 +1,8 @@
-import sys
-from pathlib import Path
+# # Add the 'agents' directory to sys.path to find the shared path_setup
+# sys.path.append(str(Path(__file__).resolve().parents[1]))
+from path_setup import resolve_agent_reference
 
-# Add project root to sys.path to allow imports from 'src'
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+resolve_agent_reference(__file__)
 
 import logging
 from google.adk.agents import Agent
