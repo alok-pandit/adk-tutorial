@@ -75,12 +75,18 @@ root_agent = Agent(
     
     PROCESS:
     1.  Analyze the user's request to determine the correct scenario.
-    2.  Call the appropriate "Sub-Agent" tool to get the data for that scenario.
-    3.  The tool will return a structure (JSON-compatible).
-    4.  Convert that structure to a JSON string.
-    5.  Call `generate_adaptive_card` with the corresponding template name and the JSON string.
-    6.  Return the resulting Adaptive Card JSON only and no other commentary to the user.
-    7.  No need to write "The Adaptive Card for the system alert is displayed below:" or any other text in the response. Just return the adaptive card JSON only.
+    2.  If NO specific scenario matches, use the 'simple' sub-agent (`get_simple_message`).
+    3.  Call the appropriate "Sub-Agent" tool to get the data.
+    4.  The tool will return a structure (JSON-compatible).
+    5.  Convert that structure to a JSON string.
+    6.  Call `generate_adaptive_card` with the corresponding template name and the JSON string.
+    7.  You must ONLY return a valid Adaptive Card JSON string.
+    8.  NEVER return plain text, markdown, or conversational filler (e.g., "Here is the card").
+    
+    CRITICAL OUTPUT RULE:
+    - Your final response must start with `{` and end with `}`.
+    - Do not wrap it in markdown code blocks (like `json ... `).
+    - Just raw JSON string.
 
     SCENARIO MAPPING (Template -> Tool):
     - 'hero' -> `get_hero_content(topic)`
