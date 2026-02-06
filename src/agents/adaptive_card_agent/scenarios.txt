@@ -1,0 +1,58 @@
+# Adaptive Card Agent - Sample Scenarios
+# Use these queries to test the specific card templates
+
+## 1. Hero Card (Welcome/Introduction)
+- Hi there! Who are you?
+- Welcome me to the system.
+- Introduce yourself.
+
+## 2. Alert Card (Status/Warning)
+- System is overheating!
+- CRITICAL: The server is on fire!
+- Alert: Low disk space detected.
+- Status update for module X: Failed.
+
+## 3. Data Summary Card (Charts/Stats)
+- Show me the sales report for Q1.
+- Display the weekly user growth stats.
+- What are the latest performance metrics?
+
+## 4. Form Card (Inputs)
+- I need to submit some feedback.
+- Open the feedback form.
+- Let me report an issue.
+
+## 5. List Card (Tasks/Items)
+- What are my top 3 tasks for today?
+- Show me my pending items.
+- List my priority actions.
+
+## 6. Simple Card (Text)
+- Say hello world.
+- Just print a simple message.
+- Echo: Hello.
+
+## 7. Flight Update Card
+- Is flight UA123 on time?
+- What is the status of flight AA999?
+- Check flight DL456.
+
+## 8. Weather Card
+- What is the weather like in Seattle?
+- Forecast for New York City.
+- Is it raining in London?
+
+## 9. Stock Update Card
+- Show me the stock price for GOOGL.
+- How is MSFT doing today?
+- Quote for AAPL.
+
+## 10. Calendar Invite Card
+- Create a calendar invite for the team sync at 10am tomorrow.
+- Schedule a meeting with the design team.
+- Invite Alok to a project review.
+
+## 11. Restaurant Details Card
+- Recommend a good sushi restaurant nearby.
+- Find me an Italian place for dinner.
+- Details for the top rated burger joint.

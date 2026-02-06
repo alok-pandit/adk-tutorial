@@ -8,6 +8,20 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pathlib import Path
 
+# Import strict data models (indirectly used via tools, but good for type safety if needed)
+from .models import (
+    HeroData, AlertData, DataSummaryData, FormData,
+    ListData, SimpleData, FlightUpdateData, WeatherData,
+    StockUpdateData, CalendarInviteData, RestaurantDetailsData
+)
+
+# Import sub-agent tools
+from .sub_agents import (
+    get_hero_content, get_system_alert, get_sales_report, get_feedback_form,
+    get_task_list, get_simple_message, get_flight_status, get_weather_forecast,
+    get_stock_quote, get_calendar_event, get_restaurant_recommendation
+)
+
 # Get the directory of the current file
 CURRENT_DIR = Path(__file__).parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent.parent
@@ -20,7 +34,7 @@ async def generate_adaptive_card(tool_context: ToolContext, template: str, data_
     Generates an Adaptive Card using the specified template and data.
     
     Args:
-        template: The template type ('hero', 'alert', 'data_summary', 'form', 'list', 'simple').
+        template: The template type (e.g., 'hero', 'alert', 'flight_update').
         data_json: A JSON string containing the data for the card.
     """
     
@@ -55,43 +69,45 @@ async def generate_adaptive_card(tool_context: ToolContext, template: str, data_
 
 root_agent = Agent(
     name="adaptive_card_agent",
-    description="An agent that generates Adaptive Cards based on user requests using an MCP server.",
+    description="An agent that creates Adaptive Cards by first fetching valid data from sub-agents.",
     instruction="""
-    You are an intelligent assistant capable of generating Adaptive Cards to present information rich responses.
+    You are an intelligent assistant that generates Adaptive Cards.
     
-    Your goal is to choose the most appropriate Adaptive Card template for the user's request and populate it with relevant data.
-    
-    AVAILABLE TEMPLATES:
-    1. 'hero': Use for introductions, welcomes, or featuring a specific item. Needs 'title', 'description', 'imageUrl', 'url'.
-    2. 'alert': Use for warnings, errors, notifications, or status updates. Needs 'severity' (low/medium/high), 'value', 'detail'.
-    3. 'data_summary': Use for reports, statistics, or analytical data. Needs 'title', 'total', 'trend'.
-    4. 'form': Use when you need to collect information or feedback from the user. Needs 'title'.
-    5. 'list': Use for displaying a list of items, tasks, or options. Needs 'title', 'items' (list of objects with 'title', 'subtitle').
-    6. 'simple': Use for basic text responses. Needs 'message'.
-    7. 'flight_update': Use for flight status information. Needs 'flightNumber', 'status', 'gate', 'boardingTime'.
-    8. 'weather': Use for weather forecasts. Needs 'city', 'temperature', 'condition', 'high', 'low'.
-    9. 'stock_update': Use for stock market data. Needs 'symbol', 'price', 'change', 'changePoints'.
-    10. 'calendar_invite': Use for meeting invites. Needs 'title', 'time', 'location', 'organizer', 'description'.
-    11. 'restaurant_details': Use for restaurant recommendations/details. Needs 'name', 'rating', 'cuisine', 'price', 'address', 'imageUrl'.
-    
-    INSTRUCTIONS:
-    - When the user asks a question or gives a command, analyze the intent.
-    - Select the best template from the list above.
-    - Construct a JSON string representing the data for that template.
-    - Call the `generate_adaptive_card` tool with the template name and the JSON string.
-    - Return the resulting Adaptive Card JSON only and no other commentary to the user.
-    - No need to write "The Adaptive Card for the system alert is displayed below:" or any other text in the response. Just return the adaptive card JSON only.
+    PROCESS:
+    1.  Analyze the user's request to determine the correct scenario.
+    2.  Call the appropriate "Sub-Agent" tool to get the data for that scenario.
+    3.  The tool will return a structure (JSON-compatible).
+    4.  Convert that structure to a JSON string.
+    5.  Call `generate_adaptive_card` with the corresponding template name and the JSON string.
+    6.  Return the resulting Adaptive Card JSON only and no other commentary to the user.
+    7.  No need to write "The Adaptive Card for the system alert is displayed below:" or any other text in the response. Just return the adaptive card JSON only.
+
+    SCENARIO MAPPING (Template -> Tool):
+    - 'hero' -> `get_hero_content(topic)`
+    - 'alert' -> `get_system_alert(component)`
+    - 'data_summary' -> `get_sales_report(quarter)`
+    - 'form' -> `get_feedback_form(context)`
+    - 'list' -> `get_task_list(user)`
+    - 'simple' -> `get_simple_message(text)`
+    - 'flight_update' -> `get_flight_status(flight_number)`
+    - 'weather' -> `get_weather_forecast(city)`
+    - 'stock_update' -> `get_stock_quote(symbol)`
+    - 'calendar_invite' -> `get_calendar_event(event_type)`
+    - 'restaurant_details' -> `get_restaurant_recommendation(cuisine)`
     
     EXAMPLES:
-    - User: "Show me the sales report" -> Use 'data_summary' template with sales data.
-    - User: "I want to give feedback" -> Use 'form' template.
-    - User: "System is overheating!" -> Use 'alert' template with 'high' severity.
-    - User: "What are my tasks?" -> Use 'list' template with task items.
-    - User: "Is flight UA123 on time?" -> Use 'flight_update' template.
-    - User: "What's the weather in NY?" -> Use 'weather' template.
-    - User: "How is MSFT doing?" -> Use 'stock_update' template.
-    - User: "Schedule a meeting" -> Use 'calendar_invite' template.
-    - User: "Find a good Italian place" -> Use 'restaurant_details' template.
+    - User: "Check flight UA123"
+      1. Call `get_flight_status("UA123")` -> Returns FlightUpdateData(...)
+      2. Call `generate_adaptive_card("flight_update", json_string_of_data)`
+    
+    - User: "Stock price for AAPL"
+      1. Call `get_stock_quote("AAPL")` -> Returns StockUpdateData(...)
+      2. Call `generate_adaptive_card("stock_update", json_string_of_data)`
     """,
-    tools=[generate_adaptive_card],
+    tools=[
+        generate_adaptive_card,
+        get_hero_content, get_system_alert, get_sales_report, get_feedback_form,
+        get_task_list, get_simple_message, get_flight_status, get_weather_forecast,
+        get_stock_quote, get_calendar_event, get_restaurant_recommendation
+    ],
 )
