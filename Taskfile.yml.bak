@@ -1,0 +1,13 @@
+version: "3"
+vars:
+  PY: uv run python3
+tasks:
+  agui:
+    desc: Run agui agent runner
+    cmds:
+      - "{{.PY}} -m src.agents.agui.runner"
+  run:
+    desc: Discover and run agent runners under src/agents
+    cmds:
+      - >-
+        bash -lc 'for a in $(ls -1 src/agents 2>/dev/null | grep -v "__pycache__" || true); do [ -d "src/agents/$a" ] || continue; if [ -f "src/agents/$a/runner.py" ] || [ -d "src/agents/$a/runner" ]; then echo "=== RUNNING: $a ==="; PYTHONPATH="$(pwd)" {{.PY}} -m src.agents.$a.runner || echo "Agent $a exited with code $?"; else echo "No runner for $a"; fi; done'

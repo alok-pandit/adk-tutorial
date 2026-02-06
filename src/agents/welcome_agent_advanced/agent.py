@@ -1,15 +1,13 @@
-# # Add the 'agents' directory to sys.path to find the shared path_setup
-# sys.path.append(str(Path(__file__).resolve().parents[1]))
-from path_setup import resolve_agent_reference
-
-resolve_agent_reference(__file__)
-
 import logging
 from google.adk.agents import Agent
 from google.adk.sessions import DatabaseSessionService
 from google.adk.runners import Runner
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.agents.readonly_context import ReadonlyContext
+from path_setup import resolve_agent_reference
+
+resolve_agent_reference(__file__)
+
 from src.utils.file_tools import get_current_dir
 
 logger = logging.getLogger(__name__)

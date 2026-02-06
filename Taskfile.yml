@@ -1,0 +1,19 @@
+version: "3"
+vars:
+  PY: uv run python3
+tasks:
+  agui:
+    desc: Run agui agent runner
+    cmds:
+      - "{{.PY}} -m src.agents.agui.runner"
+  run:
+    desc: Run agent runners in parallel using ttab
+    cmds:
+      - >-
+        for d in src/agents/*; do
+          if [ -d "$d" ] && [ -f "$d/runner.py" ]; then
+            agent=$(basename "$d")
+            echo "Launching $agent..."
+            ttab -t "$agent" "{{.PY}} -m src.agents.$agent.runner"
+          fi
+        done
