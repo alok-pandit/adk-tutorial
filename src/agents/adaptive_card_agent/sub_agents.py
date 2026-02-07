@@ -1,6 +1,6 @@
 from .models import (
     HeroData, AlertData, DataSummaryData, FormData, ListData, ListItem, SimpleData,
-    FlightUpdateData, WeatherData, StockUpdateData, CalendarInviteData, RestaurantDetailsData
+    FlightUpdateData, WeatherData, StockUpdateData, CalendarInviteData, RestaurantDetailsData, PopupData
 )
 
 def get_hero_content(topic: str) -> HeroData:
@@ -20,13 +20,27 @@ def get_system_alert(component: str) -> AlertData:
         detail=f"Critical failure detected in {component} module."
     )
 
-def get_sales_report(quarter: str) -> DataSummaryData:
-    """Returns sales report data."""
-    return DataSummaryData(
-        title=f"Sales Report - {quarter}",
-        total=125000.00,
-        trend="Up 15% YoY"
-    )
+def get_data_report(report_type: str) -> DataSummaryData:
+    """Returns a data report based on the requested type (e.g., sales, growth, performance)."""
+    if "growth" in report_type.lower():
+        return DataSummaryData(
+            title=f"User Growth - {report_type}",
+            total=5432.00,
+            trend="Up 25% WoW"
+        )
+    elif "performance" in report_type.lower():
+         return DataSummaryData(
+            title=f"System Performance - {report_type}",
+            total=98.5,
+            trend="Stable"
+        )
+    else:
+        # Default to sales
+        return DataSummaryData(
+            title=f"Sales Report - {report_type}",
+            total=125000.00,
+            trend="Up 15% YoY"
+        )
 
 def get_feedback_form(context: str) -> FormData:
     """Returns a feedback form structure."""
@@ -103,3 +117,41 @@ def get_restaurant_recommendation(cuisine: str) -> RestaurantDetailsData:
         url="https://opentable.com",
         menuUrl="https://opentable.com/menu"
     )
+
+def get_popup_tools(tool_type: str) -> PopupData:
+    """Returns popup action data for specific tools (calendar, city, checklist)."""
+    base_url = "http://10.0.0.250:3000"
+    tool_type = tool_type.lower()
+    
+    if "calendar" in tool_type:
+        return PopupData(
+            title="Calendar Tool",
+            text="Click below to open the calendar picker.",
+            buttonTitle="Open Calendar",
+            url=f"{base_url}"
+            # url=f"{base_url}/calendar"
+        )
+    elif "city" in tool_type or "location" in tool_type:
+        return PopupData(
+            title="Location Selector",
+            text="Click below to select a city.",
+            buttonTitle="Select City",
+            url=f"{base_url}"
+            # url=f"{base_url}/city"
+        )
+    elif "checklist" in tool_type:
+        return PopupData(
+             title="Checklist View",
+             text="Click below to view the checklist.",
+             buttonTitle="View Checklist",
+             url=f"{base_url}"
+            # url=f"{base_url}/checklist"
+        )
+    else:
+        # Default fallback
+        return PopupData(
+            title="External Tool",
+            text="Click below to open the tool.",
+            buttonTitle="Open Tool",
+            url=f"{base_url}"
+        )

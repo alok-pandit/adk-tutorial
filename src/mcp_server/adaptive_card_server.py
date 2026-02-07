@@ -8,7 +8,7 @@ mcp = FastMCP("Adaptive Card Generator")
 def create_hero_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -79,7 +79,7 @@ def create_alert_card(data: Dict[str, Any]) -> Dict[str, Any]:
          
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": body,
         "actions": actions if actions else None
@@ -89,7 +89,7 @@ def create_data_summary_card(data: Dict[str, Any]) -> Dict[str, Any]:
     # Simulate a chart with an image
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -117,7 +117,7 @@ def create_data_summary_card(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_form_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -176,7 +176,7 @@ def create_list_card(data: Dict[str, Any]) -> Dict[str, Any]:
         
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -196,7 +196,7 @@ def create_list_card(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_flight_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -262,7 +262,7 @@ def create_flight_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_weather_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
              {
@@ -323,7 +323,7 @@ def create_stock_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
     
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -379,7 +379,7 @@ def create_stock_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_calendar_invite_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
             {
@@ -429,7 +429,7 @@ def create_calendar_invite_card(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_restaurant_details_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
          "type": "AdaptiveCard",
-         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
          "version": "1.5",
          "body": [
             {
@@ -493,6 +493,51 @@ def create_restaurant_details_card(data: Dict[str, Any]) -> Dict[str, Any]:
          ]
     }
 
+def create_popup_card(data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+            {
+                "type": "Image",
+                "url": "https://media.giphy.com/media/l41lI4bYmcsPJX9Go/giphy.gif",
+                "size": "Medium",
+                "horizontalAlignment": "Center"
+            },
+            {
+                "type": "TextBlock",
+                "text": data.get("title", "Tool"),
+                "size": "Medium",
+                "weight": "Bolder",
+                "horizontalAlignment": "Center"
+            },
+            {
+                "type": "TextBlock",
+                "text": data.get("text", "Click button to open."),
+                "wrap": True
+            }
+        ],
+        "actions": [
+            {
+                "type": "Action.Submit",
+                "title": f"{data.get('buttonTitle', 'Open')} (Teams)",
+                "data": {
+                    "msteams": {
+                        "type": "task/fetch"
+                    },
+                    "url": data.get("url", "about:blank"),
+                    "title": data.get("title", "Tool")
+                }
+            },
+            {
+                "type": "Action.OpenUrl",
+                "title": f"{data.get('buttonTitle', 'Open')} (Web)",
+                "url": data.get("url", "about:blank")
+            }
+        ]
+    }
+
 @mcp.tool()
 def generate_adaptive_card(template: str, data: str) -> str:
     """
@@ -529,11 +574,13 @@ def generate_adaptive_card(template: str, data: str) -> str:
         card = create_calendar_invite_card(data_dict)
     elif template == "restaurant_details":
         card = create_restaurant_details_card(data_dict)
+    elif template == "popup":
+        card = create_popup_card(data_dict)
     else:
         # Default simple card
         card = {
             "type": "AdaptiveCard",
-            "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+            "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
             "version": "1.5",
             "body": [
                 {

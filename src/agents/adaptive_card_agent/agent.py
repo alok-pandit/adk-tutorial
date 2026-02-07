@@ -17,9 +17,9 @@ from .models import (
 
 # Import sub-agent tools
 from .sub_agents import (
-    get_hero_content, get_system_alert, get_sales_report, get_feedback_form,
+    get_hero_content, get_system_alert, get_data_report, get_feedback_form,
     get_task_list, get_simple_message, get_flight_status, get_weather_forecast,
-    get_stock_quote, get_calendar_event, get_restaurant_recommendation
+    get_stock_quote, get_calendar_event, get_restaurant_recommendation, get_popup_tools
 )
 
 # Get the directory of the current file
@@ -84,14 +84,12 @@ root_agent = Agent(
     8.  NEVER return plain text, markdown, or conversational filler (e.g., "Here is the card").
     
     CRITICAL OUTPUT RULE:
-    - Your final response must start with `{` and end with `}`.
-    - Do not wrap it in markdown code blocks (like `json ... `).
-    - Just raw JSON string.
+    Final response must start with `{` and end with `}`. Just raw JSON string.
 
     SCENARIO MAPPING (Template -> Tool):
     - 'hero' -> `get_hero_content(topic)`
     - 'alert' -> `get_system_alert(component)`
-    - 'data_summary' -> `get_sales_report(quarter)`
+    - 'data_summary' -> `get_data_report(report_type)`
     - 'form' -> `get_feedback_form(context)`
     - 'list' -> `get_task_list(user)`
     - 'simple' -> `get_simple_message(text)`
@@ -100,6 +98,7 @@ root_agent = Agent(
     - 'stock_update' -> `get_stock_quote(symbol)`
     - 'calendar_invite' -> `get_calendar_event(event_type)`
     - 'restaurant_details' -> `get_restaurant_recommendation(cuisine)`
+    - 'popup' -> `get_popup_tools(tool_type)`
     
     EXAMPLES:
     - User: "Check flight UA123"
@@ -109,11 +108,27 @@ root_agent = Agent(
     - User: "Stock price for AAPL"
       1. Call `get_stock_quote("AAPL")` -> Returns StockUpdateData(...)
       2. Call `generate_adaptive_card("stock_update", json_string_of_data)`
+      
+    - User: "Weekly user growth stats"
+      1. Call `get_data_report("weekly user growth")` -> Returns DataSummaryData(...)
+      2. Call `generate_adaptive_card("data_summary", json_string_of_data)`
+      
+    - User: "Open the calendar"
+      1. Call `get_popup_tools("calendar")` -> Returns PopupData(...)
+      2. Call `generate_adaptive_card("popup", json_string_of_data)`
+      
+    - User: "I need to select a city"
+      1. Call `get_popup_tools("city")` -> Returns PopupData(...)
+      2. Call `generate_adaptive_card("popup", json_string_of_data)`
+      
+    - User: "Show me the checklist"
+      1. Call `get_popup_tools("checklist")` -> Returns PopupData(...)
+      2. Call `generate_adaptive_card("popup", json_string_of_data)`
     """,
     tools=[
         generate_adaptive_card,
-        get_hero_content, get_system_alert, get_sales_report, get_feedback_form,
+        get_hero_content, get_system_alert, get_data_report, get_feedback_form,
         get_task_list, get_simple_message, get_flight_status, get_weather_forecast,
-        get_stock_quote, get_calendar_event, get_restaurant_recommendation
+        get_stock_quote, get_calendar_event, get_restaurant_recommendation, get_popup_tools
     ],
 )

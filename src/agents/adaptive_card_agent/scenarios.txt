@@ -56,3 +56,9 @@
 - Recommend a good sushi restaurant nearby.
 - Find me an Italian place for dinner.
 - Details for the top rated burger joint.
+
+## 12. Popup Action Card (Tools)
+- Open the calendar for me.
+- Open the city selector.
+- I need to select a location.
+- Show me the checklist.

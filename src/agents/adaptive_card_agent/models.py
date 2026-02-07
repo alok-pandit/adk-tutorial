@@ -72,3 +72,10 @@ class RestaurantDetailsData(BaseModel):
     imageUrl: str
     url: str
     menuUrl: str
+
+class PopupData(BaseModel):
+    title: str
+    text: str
+    buttonTitle: str
+    url: str
+
