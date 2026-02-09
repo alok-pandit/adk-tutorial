@@ -1,19 +1,10 @@
 import logging
-import json
-from typing import Dict, Any
 
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pathlib import Path
-
-# Import strict data models (indirectly used via tools, but good for type safety if needed)
-from .models import (
-    HeroData, AlertData, DataSummaryData, FormData,
-    ListData, SimpleData, FlightUpdateData, WeatherData,
-    StockUpdateData, CalendarInviteData, RestaurantDetailsData
-)
 
 # Import sub-agent tools
 from .sub_agents import (
@@ -81,7 +72,7 @@ root_agent = Agent(
     5.  You MUST use the EXACT structure returned by the tool. Convert the entire object to a JSON string.
     6.  Call `generate_adaptive_card` with the corresponding template name and that EXACT JSON string.
     7.  You must ONLY return a valid Adaptive Card JSON string.
-    8.  NEVER return plain text, markdown, or conversational filler (e.g., "Here is the card").
+    8.  NEVER return plain text, markdown, or conversational fillers (e.g., "Here is the card").
     
     CRITICAL OUTPUT RULE:
     Final response must start with `{` and end with `}`. Just raw JSON string.
