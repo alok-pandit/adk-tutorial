@@ -216,8 +216,8 @@ async def repair_llm_request_callback(
 ):
     """
     Final-stage repair callback to fix Gemini 'INVALID_ARGUMENT' errors.
-    Iterates through the request contents and ensures every user turn has a non-null text part.
-    We are careful to only add/modify text if there is no other data in the Part (oneof field).
+    Ensures every user turn has a valid part (text or function_response).
+    Only appends a text part if the turn is effectively empty.
     """
     if not llm_request or not llm_request.contents:
         return None
@@ -225,33 +225,22 @@ async def repair_llm_request_callback(
     repaired = False
     for content in llm_request.contents:
         if content.role == "user":
-            # Check if this turn is completely empty (no text and no other data in any part)
-            is_empty_turn = True
-            if content.parts:
-                for part in content.parts:
-                    # Check for any field that satisfies Gemini's requirement for a part
-                    if (getattr(part, 'text', None) or 
-                        getattr(part, 'inline_data', None) or 
-                        getattr(part, 'function_response', None) or
-                        getattr(part, 'file_data', None)):
-                        is_empty_turn = False
-                        break
-            else:
-                is_empty_turn = True # No parts at all is definitely empty
+            # A turn is valid if it has text OR data (function response, inline data, etc.)
+            has_valid_content = any(
+                getattr(part, 'text', None) is not None or
+                getattr(part, 'function_response', None) is not None or
+                getattr(part, 'inline_data', None) is not None or
+                getattr(part, 'file_data', None) is not None
+                for part in content.parts
+            )
             
-            if is_empty_turn:
-                logger.info("Repaired empty user turn in LlmRequest for Gemini turn order.")
-                if content.parts:
-                    # Set text on the first part ONLY if it has no other data (oneof collision check)
-                    part = content.parts[0]
-                    # Since is_empty_turn is true, no field is set, so setting text is safe
-                    part.text = "submit_dynamic_form"
-                else:
-                    content.parts.append(types.Part(text="submit_dynamic_form"))
+            if not has_valid_content:
+                logger.info("Repaired empty user turn in LlmRequest by appending a text part.")
+                content.parts.append(types.Part(text="submit_dynamic_form"))
                 repaired = True
     
     if repaired:
-        logger.info("Successfully repaired LlmRequest contents.")
+        logger.info("Successfully repaired empty LlmRequest turns.")
     
     return None
 
@@ -260,53 +249,28 @@ root_agent = Agent(
     name="adaptive_card_agent",
     description="An agent that creates Adaptive Cards by first fetching valid data from sub-agents.",
     instruction="""
-    You are an expert at generating Adaptive Card JSON.
+    You are an expert at generating Adaptive Card JSON by orchestrating sub-agent tools.
     
-    CRITICAL: YOU MUST ONLY RETURN THE RAW JSON STRING AS YOUR FINAL RESPONSE.
-    NEVER include conversational text, markdown code blocks (```json), or explanations.
+    CRITICAL: YOUR FINAL RESPONSE MUST ONLY BE THE RAW ADAPTIVE CARD JSON STRING.
+    NEVER include conversational text, markdown blocks (```json), or explanations.
 
-    ### PROCESS
-    1. Determine if the user is SUBMITTING a form or REQUESTING a new card.
-    2. If SUBMITTING (input contains `action: "submit_dynamic_form"` OR text is "submit_dynamic_form"):
-       - You must call `validate_form_submission(submission_data=...)`.
-       - If the input is just the string "submit_dynamic_form", look through the conversation history or session state for the most recent form data if possible, or request the user to provide the fields.
-       - Usually, the entire card data is passed in the tool call.
-    3. If REQUESTING (fetching data/generating new card):
-       - Determine if a specific data tool matches (flight, weather, etc.).
-       - If it matches, call the data tool and pass result to `generate_adaptive_card(template=..., data=...)`.
-       - If the user wants a CUSTOM form, call `generate_dynamic_form_card(data=...)`.
-       - Otherwise, use `get_simple_message` -> `generate_adaptive_card(template="simple", data=...)`.
-    4. RETURN THE RAW RESULT OF THE GENERATION TOOL DIRECTLY. DO NOT WRAP IT.
-
-    ### TOOLS
-    - DATA TOOLS: get_hero_content, get_system_alert, get_feedback_form, get_task_list, get_simple_message, get_flight_status, get_weather_forecast, get_stock_quote, get_calendar_event, get_restaurant_recommendation.
-    - VALIDATION TOOLS:
-        - `validate_form_submission(submission_data)`: Validates form results.
-    - GENERATION TOOLS: 
-        - `generate_adaptive_card(template, data)`: For standard templates.
-        - `generate_dynamic_form_card(data)`: For custom forms (generates a form_id).
-
-    ### DYNAMIC FORM DATA FORMAT
-    Use this for `generate_dynamic_form_card`:
-    {
-      "title": "Title",
-      "instructions": "Help text (optional)",
-      "fields": [
-        {
-          "id": "id",
-          "type": "text|date|number|choice|checkbox",
-          "label": "Label",
-          "isRequired": bool,
-          "options": [{"title": "Label", "value": "val"}] (for choice/checkbox)
-        }
-      ]
-    }
+    ### WORKFLOWS
+    1. IF THE USER IS SUBMITTING A FORM (identified by "action": "submit_dynamic_form" in data OR the text is "submit_dynamic_form"):
+       - You MUST call `validate_form_submission(submission_data=...)`.
+       - Pass the entire data object received from the submission.
+       - RETURN THE RAW STRING RESULT OF THE TOOL.
+    
+    2. IF THE USER IS REQUESTING A CARD (feedback, weather, flight, stock, etc.):
+       - Step A: Call the appropriate DATA TOOL (e.g., `get_feedback_form` for feedback, `get_weather_forecast` for weather).
+       - Step B: Pass the RESULT of that data tool to `generate_adaptive_card(template=..., data=...)`.
+       - RETURN THE RAW STRING RESULT OF THE GENERATION TOOL.
+    
+    3. IF THE USER WANTS A DYNAMIC/CUSTOM FORM:
+       - Step A: Call `generate_dynamic_form_card(data=...)` with the requested fields.
+       - RETURN THE RAW STRING RESULT OF THE TOOL.
 
     ### FINAL OUTPUT RULES
-    - YOUR ENTIRE RESPONSE MUST START WITH "{" AND END WITH "}".
-    - NO PREAMBLE. NO POSTAMBLE. NO MARKDOWN BLOCKS.
-    - Example of GOOD response: {"type": "AdaptiveCard", ...}
-    - Example of BAD response: Here is the card: {"type": "AdaptiveCard", ...}
+    - THE ENTIRE OUTPUT MUST BE VALID JSON STARTING WITH "{" AND ENDING WITH "}".
     """,
     tools=[
         validate_form_submission,

@@ -76,8 +76,12 @@ def create_alert_card(data: Dict[str, Any]) -> Dict[str, Any]:
             "type": "Action.Submit",
             "title": "Acknowledge",
             "data": { "action": "acknowledge" },
-            "text": "acknowledge",
-            "msteams": { "type": "imBack", "value": "acknowledge" }
+            "msteams": { 
+                "type": "messageBack", 
+                "displayText": "Acknowledge",
+                "text": "acknowledge",
+                "value": { "action": "acknowledge" }
+            }
         })
          
     return {
@@ -153,8 +157,12 @@ def create_form_card(data: Dict[str, Any]) -> Dict[str, Any]:
                 "type": "Action.Submit",
                 "title": "Submit",
                 "data": { "action": "submit_form" },
-                "text": "submit_form",
-                "msteams": { "type": "imBack", "value": "submit_form" }
+                "msteams": { 
+                    "type": "messageBack", 
+                    "displayText": "Submit Form",
+                    "text": "submit_form",
+                    "value": { "action": "submit_form" }
+                }
             }
         ]
     }
@@ -688,8 +696,12 @@ def create_dynamic_form(data: Dict[str, Any]) -> Dict[str, Any]:
                 "type": "Action.Submit",
                 "title": "Submit",
                 "data": submit_data,
-                "text": "submit_dynamic_form",
-                "msteams": { "type": "imBack", "value": "submit_dynamic_form" }
+                "msteams": { 
+                    "type": "messageBack", 
+                    "displayText": "Submit Dynamic Form",
+                    "text": "submit_dynamic_form",
+                    "value": submit_data
+                }
             }
         ]
     }
