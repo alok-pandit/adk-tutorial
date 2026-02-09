@@ -60,38 +60,46 @@ async def generate_dynamic_form_card(
 ) -> str:
     """
     Generates an Adaptive Card for a custom dynamic form.
-    Use this for requests involving specific fields, date ranges, or custom inputs.
-    """
-    logger.info(f"Generating dynamic form with data type: {type(data)}")
+    Use this when the user requests specific fields, date ranges, or custom inputs.
     
-    # Ensure data is a JSON string
-    if isinstance(data, (dict, list)):
-        data_json = json.dumps(data)
-    else:
-        data_json = str(data)
-        
-    return await generate_adaptive_card(template="dynamic_form", data=data_json)
+    Args:
+        data: The form structure following the DynamicFormData schema.
+    """
+    return await generate_adaptive_card(template="dynamic_form", data=data)
 
 
 async def generate_adaptive_card(
     template: str, data: Any
 ) -> str:
     """
-    Generates an Adaptive Card using the specified template and data.
+    Generates an Adaptive Card for a specific template and data.
 
     Args:
-        template: The template type (e.g., 'hero', 'alert', 'flight_update').
-        data: The data for the card, as a JSON string or a dictionary.
+        template: The template type ('hero', 'form', 'alert', 'dynamic_form', etc.).
+        data: The data for the card (dict, string, or object from sub-agents).
     """
-    # Ensure data is a JSON string for the MCP call
-    if isinstance(data, (dict, list)):
-        data_json = json.dumps(data)
-    else:
-        data_json = str(data)
+    # Robust serialization for all input types (JSON strings, dicts, Pydantic models)
+    try:
+        if isinstance(data, str):
+            # Check if it's already a JSON string
+            try:
+                json.loads(data)
+                serialized_data = data
+            except json.JSONDecodeError:
+                serialized_data = json.dumps(data)
+        elif hasattr(data, "model_dump"):
+            serialized_data = json.dumps(data.model_dump())
+        elif isinstance(data, (dict, list)):
+            serialized_data = json.dumps(data)
+        else:
+            serialized_data = str(data)
+    except Exception as e:
+        logger.error(f"Serialization failed: {e}")
+        serialized_data = str(data)
 
-    logger.info(f"Generating adaptive card: template={template}, data_len={len(data_json)}")
+    logger.info(f"Generating adaptive card: template={template}, data_len={len(serialized_data)}")
 
-    # Connect to MCP server to generate card
+    # Connect to MCP server
     server_params = StdioServerParameters(
         command="python3", args=[str(MCP_SERVER_SCRIPT)], env=None
     )
@@ -103,95 +111,63 @@ async def generate_adaptive_card(
 
                 result = await session.call_tool(
                     "generate_adaptive_card",
-                    arguments={"template": template, "data": data_json},
+                    arguments={"template": template, "data": serialized_data},
                 )
 
                 if result.content and hasattr(result.content[0], "text"):
                     text = result.content[0].text  # type: ignore
-                    if isinstance(text, str) and text.strip():
-                        return text
-                    else:
-                        return _build_fallback_card("Empty response from MCP server.", template, data_json)
+                    return str(text)
                 else:
-                    return _build_fallback_card("Empty response from MCP server.", template, data_json)
+                    return _build_fallback_card("No content returned from generator.", template, serialized_data)
 
     except Exception as e:
-        logger.error(f"Failed to communicate with MCP server: {e}")
-        return _build_fallback_card(f"Error creating card: {e}", template, data_json)
+        logger.error(f"Generator tool failed: {e}")
+        return _build_fallback_card(f"Error: {e}", template, serialized_data)
 
 
 root_agent = Agent(
     name="adaptive_card_agent",
     description="An agent that creates Adaptive Cards by first fetching valid data from sub-agents.",
     instruction="""
-    You are an intelligent assistant that generates Adaptive Cards.
+    You are an expert at generating Adaptive Card JSON.
     
-    PROCESS:
-    1.  Analyze the user's request.
-    2.  If it's a CUSTOM/DYNAMIC request (specific fields like dropdowns, selectors, date ranges), you MUST construct the data and call `generate_dynamic_form_card(data=...)`.
-    3.  Otherwise, call a "Sub-Agent" tool and pass its result to `generate_adaptive_card(template=..., data=...)`.
-    
-    CRITICAL RULES:
-    4.  TOOL CALLING: When you call a tool, do NOT include ANY text, pleasantries, or descriptions. ONLY provide the tool call.
-    5.  RESPONSE: You must return the RAW JSON string exactly as returned by the tool. Do NOT add conversational text or wrap it.
-    6.  ONLY VALID JSON: Your entire output must be a single Adaptive Card JSON string.
-    7.  NEVER return Markdown code blocks (e.g., no ```json). Return the raw text.
-    8.  NEVER wrap the output in objects like `{"result": ...}`.
-    
-    DYNAMIC FORM SCHEMA:
+    CRITICAL: YOU MUST ONLY RETURN THE RAW JSON STRING AS YOUR FINAL RESPONSE.
+    NEVER include conversational text, markdown code blocks (```json), or explanations.
+
+    ### PROCESS
+    1. Determine if a specific data tool matches the user's request (e.g., flight, weather, tasks).
+    2. If it matches, call the data tool. Pass its result to `generate_adaptive_card(template=..., data=...)`.
+    3. If the user wants a CUSTOM form with specific fields (dropdowns, date ranges, checkboxes), YOU MUST call `generate_dynamic_form_card(data=...)` with the requested structure.
+    4. If no specific tools match, use `get_simple_message` and pass to `generate_adaptive_card(template="simple", data=...)`.
+    5. RETURN THE RAW RESULT OF THE GENERATION TOOL DIRECTLY. DO NOT WRAP IT.
+
+    ### TOOLS
+    - DATA TOOLS: get_hero_content, get_system_alert, get_feedback_form, get_task_list, get_simple_message, get_flight_status, get_weather_forecast, get_stock_quote, get_calendar_event, get_restaurant_recommendation.
+    - GENERATION TOOLS: 
+        - `generate_adaptive_card(template, data)`: Use for 'hero', 'form', 'alert', 'list', 'simple', 'flight_update', 'weather', etc.
+        - `generate_dynamic_form_card(data)`: Use for 'dynamic_form' with custom fields.
+
+    ### DYNAMIC FORM DATA FORMAT
+    Use this for `generate_dynamic_form_card`:
     {
-      "title": "String",
-      "instructions": "Helpful text",
+      "title": "Title",
+      "instructions": "Help text (optional)",
       "fields": [
         {
-          "id": "unique_string",
-          "type": "text | date | number | choice | checkbox",
-          "label": "Display Label",
-          "placeholder": "Optional text",
-          "isRequired": boolean,
-          "options": [{"title": "Label", "value": "val"}], (Required for choice/checkbox)
-          "isMultiSelect": boolean (Optional for choice)
+          "id": "id",
+          "type": "text|date|number|choice|checkbox",
+          "label": "Label",
+          "isRequired": bool,
+          "options": [{"title": "Label", "value": "val"}] (for choice/checkbox)
         }
       ]
     }
 
-    SCENARIO MAPPING:
-    - Custom Form Fields/Date Ranges -> `generate_dynamic_form_card(data=...)`
-    - 'hero' -> `get_hero_content(topic)`
-    - 'alert' -> `get_system_alert(component)`
-    - 'data_summary' -> `get_data_report(report_type)`
-    - 'form' -> `get_feedback_form(context)` (Use ONLY for generic "I want to give feedback")
-    - 'list' -> `get_task_list(user)`
-    - 'simple' -> `get_simple_message(text)`
-    - 'flight_update' -> `get_flight_status(flight_number)`
-    - 'weather' -> `get_weather_forecast(city)`
-    - 'stock_update' -> `get_stock_quote(symbol)`
-    - 'calendar_invite' -> `get_calendar_event(event_type)`
-    - 'restaurant_details' -> `get_restaurant_recommendation(cuisine)`
-    - 'popup' -> `get_popup_tools(tool_type)`
-    
-    EXAMPLES:
-    - User: "I need to provide feedback with a date range, severity checkbox (low to high), and city dropdown."
-      1. Call `generate_dynamic_form_card` with the following `data`:
-         {
-           "title": "Detailed Feedback",
-           "fields": [
-             {"id": "start_date", "type": "date", "label": "Start Date", "isRequired": true},
-             {"id": "end_date", "type": "date", "label": "End Date", "isRequired": true},
-             {"id": "severity", "type": "checkbox", "label": "Severity Level", "options": [{"title": "Low", "value": "low"}, {"title": "Medium", "value": "med"}, {"title": "High", "value": "high"}]},
-             {"id": "city", "type": "choice", "label": "Select City", "options": [{"title": "Seattle", "value": "sea"}, {"title": "New York", "value": "nyc"}]}
-           ]
-         }
-      2. Return only the raw string from the tool.
-
-    - User: "I want to give feedback"
-      1. data = `get_feedback_form(context="general")`
-      2. Call `generate_adaptive_card(template="form", data=data)`
-      3. Return only the raw string from the tool.
-
-    - User: "What are my tasks?"
-      1. Call `get_task_list("user")` -> Returns ListData(...)
-      2. Call `generate_adaptive_card("list", json_string_of_data)`
+    ### FINAL OUTPUT RULES
+    - YOUR ENTIRE RESPONSE MUST START WITH "{" AND END WITH "}".
+    - NO PREAMBLE. NO POSTAMBLE. NO MARKDOWN BLOCKS.
+    - Example of GOOD response: {"type": "AdaptiveCard", ...}
+    - Example of BAD response: Here is the card: {"type": "AdaptiveCard", ...}
     """,
     tools=[
         generate_dynamic_form_card,
