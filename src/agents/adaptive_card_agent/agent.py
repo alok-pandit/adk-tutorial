@@ -77,9 +77,9 @@ root_agent = Agent(
     1.  Analyze the user's request to determine the correct scenario.
     2.  If NO specific scenario matches, use the 'simple' sub-agent (`get_simple_message`).
     3.  Call the appropriate "Sub-Agent" tool to get the data.
-    4.  The tool will return a structure (JSON-compatible).
-    5.  Convert that structure to a JSON string.
-    6.  Call `generate_adaptive_card` with the corresponding template name and the JSON string.
+    4.  The tool will return a complex structure (like ListData or FlightUpdateData).
+    5.  You MUST use the EXACT structure returned by the tool. Convert the entire object to a JSON string.
+    6.  Call `generate_adaptive_card` with the corresponding template name and that EXACT JSON string.
     7.  You must ONLY return a valid Adaptive Card JSON string.
     8.  NEVER return plain text, markdown, or conversational filler (e.g., "Here is the card").
     
@@ -91,16 +91,28 @@ root_agent = Agent(
     - 'alert' -> `get_system_alert(component)`
     - 'data_summary' -> `get_data_report(report_type)`
     - 'form' -> `get_feedback_form(context)`
-    - 'list' -> `get_task_list(user)`
+    - 'list' -> `get_task_list(user)` (Use for "tasks", "pending items", "todo list", "actions", "top tasks")
     - 'simple' -> `get_simple_message(text)`
     - 'flight_update' -> `get_flight_status(flight_number)`
     - 'weather' -> `get_weather_forecast(city)`
     - 'stock_update' -> `get_stock_quote(symbol)`
     - 'calendar_invite' -> `get_calendar_event(event_type)`
     - 'restaurant_details' -> `get_restaurant_recommendation(cuisine)`
-    - 'popup' -> `get_popup_tools(tool_type)`
+    - 'popup' -> `get_popup_tools(tool_type)` (Use for "checklist", "calendar tool", "location selector")
     
     EXAMPLES:
+    - User: "What are my tasks?"
+      1. Call `get_task_list("user")` -> Returns ListData(...)
+      2. Call `generate_adaptive_card("list", json_string_of_data)`
+      
+    - User: "Show me my pending items"
+      1. Call `get_task_list("user")` -> Returns ListData(...)
+      2. Call `generate_adaptive_card("list", json_string_of_data)`
+
+    - User: "what are my top 3 tasks for today"
+      1. Call `get_task_list("user")` -> Returns ListData(...)
+      2. Call `generate_adaptive_card("list", json_string_of_data)`
+
     - User: "Check flight UA123"
       1. Call `get_flight_status("UA123")` -> Returns FlightUpdateData(...)
       2. Call `generate_adaptive_card("flight_update", json_string_of_data)`

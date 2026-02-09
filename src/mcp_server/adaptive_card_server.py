@@ -9,7 +9,8 @@ def create_hero_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"{data.get('title', 'Hero Card')}. {data.get('description', 'Description goes here...')}",
         "body": [
             {
                 "type": "Container",
@@ -80,7 +81,8 @@ def create_alert_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Status Alert: {severity.upper()}. {data.get('detail', 'No details provided.')}",
         "body": body,
         "actions": actions if actions else None
     }
@@ -90,7 +92,8 @@ def create_data_summary_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Data Summary for {data.get('title', 'Data Summary')}",
         "body": [
             {
                 "type": "TextBlock",
@@ -118,7 +121,8 @@ def create_form_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Form: {data.get('title', 'Feedback Form')}",
         "body": [
             {
                 "type": "TextBlock",
@@ -152,52 +156,73 @@ def create_form_card(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def create_list_card(data: Dict[str, Any]) -> Dict[str, Any]:
-    items = data.get("items", [])
-    container_items = []
+    # Check multiple possible keys for the list items
+    items = data.get("items") or data.get("tasks") or data.get("checklist") or []
+    title = data.get("title") or "Item List"
     
-    for item in items:
-        container_items.append({
-            "type": "Container",
-            "items": [
-                {
-                    "type": "TextBlock",
-                    "text": item.get("title", "Item"),
-                    "weight": "Bolder"
-                },
-                {
-                    "type": "TextBlock",
-                    "text": item.get("subtitle", "Details"),
-                    "isSubtle": True,
-                    "spacing": "None"
-                }
-            ],
-            "separator": True
+    body = [
+        {
+            "type": "TextBlock",
+            "text": title,
+            "size": "Medium",
+            "weight": "Bolder"
+        }
+    ]
+    
+    if not items:
+        body.append({
+            "type": "TextBlock",
+            "text": "(No items found)",
+            "isSubtle": True,
+            "italic": True
         })
+    else:
+        for item in items:
+            # Handle both dicts and simple strings
+            if isinstance(item, str):
+                item_title = item
+                item_subtitle = ""
+            else:
+                item_title = item.get("title", "Item")
+                item_subtitle = item.get("subtitle", "")
+
+            item_content = [
+                {
+                    "type": "TextBlock",
+                    "text": item_title,
+                    "weight": "Bolder",
+                    "wrap": True
+                }
+            ]
+            if item_subtitle:
+                item_content.append({
+                    "type": "TextBlock",
+                    "text": item_subtitle,
+                    "isSubtle": True,
+                    "spacing": "None",
+                    "wrap": True
+                })
+
+            body.append({
+                "type": "Container",
+                "items": item_content,
+                "separator": True
+            })
         
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
-        "body": [
-            {
-                "type": "TextBlock",
-                "text": data.get("title", "Item List"),
-                "size": "Medium",
-                "weight": "Bolder"
-            },
-            {
-                 "type": "Container",
-                 "items": container_items
-            }
-        ]
+        "version": "1.4",
+        "speak": f"List: {title}. {' '.join([i.get('title', '') if isinstance(i, dict) else i for i in items[:3]])}",
+        "body": body
     }
-
 
 def create_flight_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Flight Update for {data.get('flightNumber', 'UA123')}, {data.get('route', 'SFO > JFK')}. Status: {data.get('status', 'On Time')}",
         "body": [
             {
                 "type": "TextBlock",
@@ -263,7 +288,8 @@ def create_weather_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Weather in {data.get('city', 'Unknown')}: {data.get('temperature', '72')} degrees fahrenheit, {data.get('condition', 'Sunny')}",
         "body": [
              {
                 "type": "TextBlock",
@@ -324,7 +350,8 @@ def create_stock_update_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Market Update for {data.get('symbol', 'MSFT')}: Current price is {data.get('price', '0.00')} dollars, change is {data.get('changePoints', '0.00')} points.",
         "body": [
             {
                 "type": "TextBlock",
@@ -380,7 +407,8 @@ def create_calendar_invite_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"Calendar Invite: {data.get('title', 'Team Meeting')} at {data.get('time', '10:00 AM - 11:00 AM')}",
         "body": [
             {
                 "type": "TextBlock",
@@ -430,7 +458,8 @@ def create_restaurant_details_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
          "type": "AdaptiveCard",
          "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-         "version": "1.5",
+         "version": "1.4",
+         "speak": f"Restaurant Details for {data.get('name', 'Restaurant Name')}. Rating: {data.get('rating', '4.5')}",
          "body": [
             {
                "type": "Image",
@@ -497,7 +526,8 @@ def create_popup_card(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
+        "version": "1.4",
+        "speak": f"{data.get('title', 'Tool')}. {data.get('text', 'Click button to open.')}",
         "body": [
             {
                 "type": "Image",
@@ -534,6 +564,22 @@ def create_popup_card(data: Dict[str, Any]) -> Dict[str, Any]:
                 "type": "Action.OpenUrl",
                 "title": f"{data.get('buttonTitle', 'Open')} (Web)",
                 "url": data.get("url", "about:blank")
+            }
+        ]
+    }
+
+def create_simple_card(data: Dict[str, Any]) -> Dict[str, Any]:
+    text = data.get("message") or data.get("text") or data.get("content") or "No content provided."
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "speak": text,
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": text,
+                "wrap": True
             }
         ]
     }
@@ -576,20 +622,11 @@ def generate_adaptive_card(template: str, data: str) -> str:
         card = create_restaurant_details_card(data_dict)
     elif template == "popup":
         card = create_popup_card(data_dict)
+    elif template == "simple":
+        card = create_simple_card(data_dict)
     else:
-        # Default simple card
-        card = {
-            "type": "AdaptiveCard",
-            "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
-            "version": "1.5",
-            "body": [
-                {
-                    "type": "TextBlock",
-                    "text": data_dict.get("message", "Content"),
-                    "wrap": True
-                }
-            ]
-        }
+        # Default simple card fallback
+        card = create_simple_card(data_dict)
         
     return json.dumps(card, indent=2)
 
