@@ -1,9 +1,12 @@
-import logging
 import json
+import logging
+import uuid
 from typing import Any, Dict
 
 from google.adk.agents import Agent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools.tool_context import ToolContext
+from google.genai import types
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pathlib import Path
@@ -33,6 +36,9 @@ PROJECT_ROOT = CURRENT_DIR.parent.parent.parent
 MCP_SERVER_SCRIPT = PROJECT_ROOT / "src" / "mcp_server" / "adaptive_card_server.py"
 
 logger = logging.getLogger(__name__)
+
+# Persistent store for form definitions (In-memory for this tutorial)
+FORM_STORE: Dict[str, Any] = {}
 
 
 def _build_fallback_card(message: str, template: str, data_json: str) -> str:
@@ -65,7 +71,86 @@ async def generate_dynamic_form_card(
     Args:
         data: The form structure following the DynamicFormData schema.
     """
-    return await generate_adaptive_card(template="dynamic_form", data=data)
+    # Generate unique ID and store definition for validation
+    form_id = str(uuid.uuid4())
+    
+    # Ensure data is a dict for injecting form_id
+    if hasattr(data, "model_dump"):
+        data_dict = data.model_dump()
+    elif isinstance(data, dict):
+        data_dict = data
+    else:
+        try:
+            data_dict = json.loads(str(data))
+        except:
+            data_dict = {"title": "Form", "fields": []}
+            
+    data_dict["form_id"] = form_id
+    FORM_STORE[form_id] = data_dict
+    logger.info(f"Stored form {form_id} in FORM_STORE")
+    
+    return await generate_adaptive_card(template="dynamic_form", data=data_dict)
+
+
+async def validate_form_submission(
+    submission_data: Any
+) -> str:
+    """
+    Validates a form submission against its stored definition.
+    Use this when you receive a message containing "action": "submit_dynamic_form".
+    
+    Args:
+        submission_data: The key-value pairs from the form submission.
+    """
+    logger.info(f"Validating submission: {submission_data}")
+    
+    # Handle cases where submission_data is passed as a string/json
+    if isinstance(submission_data, str):
+        try:
+            submission_data = json.loads(submission_data)
+        except:
+            pass
+
+    # Ensure submission_data is a dictionary
+    if not isinstance(submission_data, dict):
+        logger.warning(f"Submission data is not a dict: {type(submission_data)}")
+        return await generate_adaptive_card(
+            template="simple", 
+            data={"message": "Error: Invalid submission data received."}
+        )
+
+    form_id = submission_data.get("form_id")
+    if not form_id or form_id not in FORM_STORE:
+        logger.error(f"Form ID '{form_id}' not found in FORM_STORE")
+        return await generate_adaptive_card(
+            template="simple", 
+            data={"message": f"Error: Form session '{form_id}' not found or expired."}
+        )
+    
+    definition = FORM_STORE[form_id]
+    fields = definition.get("fields", [])
+    errors = []
+    
+    for field in fields:
+        fid = field.get("id")
+        label = field.get("label", fid)
+        val = submission_data.get(fid)
+        
+        if field.get("isRequired") and (val is None or val == ""):
+            errors.append(f"- {label} is required.")
+            
+    if errors:
+        error_msg = "Validation Failed:\n" + "\n".join(errors)
+        return await generate_adaptive_card(
+            template="simple",
+            data={"message": error_msg}
+        )
+    
+    success_msg = f"Success! Your submission for '{definition.get('title')}' has been validated."
+    return await generate_adaptive_card(
+        template="simple",
+        data={"message": success_msg}
+    )
 
 
 async def generate_adaptive_card(
@@ -125,6 +210,52 @@ async def generate_adaptive_card(
         return _build_fallback_card(f"Error: {e}", template, serialized_data)
 
 
+async def repair_llm_request_callback(
+    callback_context: CallbackContext, 
+    llm_request: Any # LlmRequest
+):
+    """
+    Final-stage repair callback to fix Gemini 'INVALID_ARGUMENT' errors.
+    Iterates through the request contents and ensures every user turn has a non-null text part.
+    We are careful to only add/modify text if there is no other data in the Part (oneof field).
+    """
+    if not llm_request or not llm_request.contents:
+        return None
+
+    repaired = False
+    for content in llm_request.contents:
+        if content.role == "user":
+            # Check if this turn is completely empty (no text and no other data in any part)
+            is_empty_turn = True
+            if content.parts:
+                for part in content.parts:
+                    # Check for any field that satisfies Gemini's requirement for a part
+                    if (getattr(part, 'text', None) or 
+                        getattr(part, 'inline_data', None) or 
+                        getattr(part, 'function_response', None) or
+                        getattr(part, 'file_data', None)):
+                        is_empty_turn = False
+                        break
+            else:
+                is_empty_turn = True # No parts at all is definitely empty
+            
+            if is_empty_turn:
+                logger.info("Repaired empty user turn in LlmRequest for Gemini turn order.")
+                if content.parts:
+                    # Set text on the first part ONLY if it has no other data (oneof collision check)
+                    part = content.parts[0]
+                    # Since is_empty_turn is true, no field is set, so setting text is safe
+                    part.text = "submit_dynamic_form"
+                else:
+                    content.parts.append(types.Part(text="submit_dynamic_form"))
+                repaired = True
+    
+    if repaired:
+        logger.info("Successfully repaired LlmRequest contents.")
+    
+    return None
+
+
 root_agent = Agent(
     name="adaptive_card_agent",
     description="An agent that creates Adaptive Cards by first fetching valid data from sub-agents.",
@@ -135,17 +266,25 @@ root_agent = Agent(
     NEVER include conversational text, markdown code blocks (```json), or explanations.
 
     ### PROCESS
-    1. Determine if a specific data tool matches the user's request (e.g., flight, weather, tasks).
-    2. If it matches, call the data tool. Pass its result to `generate_adaptive_card(template=..., data=...)`.
-    3. If the user wants a CUSTOM form with specific fields (dropdowns, date ranges, checkboxes), YOU MUST call `generate_dynamic_form_card(data=...)` with the requested structure.
-    4. If no specific tools match, use `get_simple_message` and pass to `generate_adaptive_card(template="simple", data=...)`.
-    5. RETURN THE RAW RESULT OF THE GENERATION TOOL DIRECTLY. DO NOT WRAP IT.
+    1. Determine if the user is SUBMITTING a form or REQUESTING a new card.
+    2. If SUBMITTING (input contains `action: "submit_dynamic_form"` OR text is "submit_dynamic_form"):
+       - You must call `validate_form_submission(submission_data=...)`.
+       - If the input is just the string "submit_dynamic_form", look through the conversation history or session state for the most recent form data if possible, or request the user to provide the fields.
+       - Usually, the entire card data is passed in the tool call.
+    3. If REQUESTING (fetching data/generating new card):
+       - Determine if a specific data tool matches (flight, weather, etc.).
+       - If it matches, call the data tool and pass result to `generate_adaptive_card(template=..., data=...)`.
+       - If the user wants a CUSTOM form, call `generate_dynamic_form_card(data=...)`.
+       - Otherwise, use `get_simple_message` -> `generate_adaptive_card(template="simple", data=...)`.
+    4. RETURN THE RAW RESULT OF THE GENERATION TOOL DIRECTLY. DO NOT WRAP IT.
 
     ### TOOLS
     - DATA TOOLS: get_hero_content, get_system_alert, get_feedback_form, get_task_list, get_simple_message, get_flight_status, get_weather_forecast, get_stock_quote, get_calendar_event, get_restaurant_recommendation.
+    - VALIDATION TOOLS:
+        - `validate_form_submission(submission_data)`: Validates form results.
     - GENERATION TOOLS: 
-        - `generate_adaptive_card(template, data)`: Use for 'hero', 'form', 'alert', 'list', 'simple', 'flight_update', 'weather', etc.
-        - `generate_dynamic_form_card(data)`: Use for 'dynamic_form' with custom fields.
+        - `generate_adaptive_card(template, data)`: For standard templates.
+        - `generate_dynamic_form_card(data)`: For custom forms (generates a form_id).
 
     ### DYNAMIC FORM DATA FORMAT
     Use this for `generate_dynamic_form_card`:
@@ -170,6 +309,7 @@ root_agent = Agent(
     - Example of BAD response: Here is the card: {"type": "AdaptiveCard", ...}
     """,
     tools=[
+        validate_form_submission,
         generate_dynamic_form_card,
         generate_adaptive_card,
         get_hero_content,
@@ -185,4 +325,5 @@ root_agent = Agent(
         get_restaurant_recommendation,
         get_popup_tools,
     ],
+    before_model_callback=repair_llm_request_callback,
 )

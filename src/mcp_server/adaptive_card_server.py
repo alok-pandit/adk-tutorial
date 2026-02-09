@@ -72,10 +72,12 @@ def create_alert_card(data: Dict[str, Any]) -> Dict[str, Any]:
     
     actions = []
     if severity != "low":
-         actions.append({
+        actions.append({
             "type": "Action.Submit",
             "title": "Acknowledge",
-            "data": { "action": "acknowledge" }
+            "data": { "action": "acknowledge" },
+            "text": "acknowledge",
+            "msteams": { "type": "imBack", "value": "acknowledge" }
         })
          
     return {
@@ -150,7 +152,9 @@ def create_form_card(data: Dict[str, Any]) -> Dict[str, Any]:
             {
                 "type": "Action.Submit",
                 "title": "Submit",
-                "data": { "action": "submit_form" }
+                "data": { "action": "submit_form" },
+                "text": "submit_form",
+                "msteams": { "type": "imBack", "value": "submit_form" }
             }
         ]
     }
@@ -443,13 +447,15 @@ def create_calendar_invite_card(data: Dict[str, Any]) -> Dict[str, Any]:
                 "type": "Action.Submit",
                 "title": "Accept",
                 "style": "positive",
-                "data": { "action": "accept", "eventId": data.get("id") }
+                "data": { "action": "accept", "eventId": data.get("id") },
+                "text": "accept"
             },
             {
                 "type": "Action.Submit",
                 "title": "Decline",
                 "style": "destructive",
-                "data": { "action": "decline", "eventId": data.get("id") }
+                "data": { "action": "decline", "eventId": data.get("id") },
+                "text": "decline"
             }
         ]
     }
@@ -558,7 +564,8 @@ def create_popup_card(data: Dict[str, Any]) -> Dict[str, Any]:
                     },
                     "url": data.get("url", "about:blank"),
                     "title": data.get("title", "Tool")
-                }
+                },
+                "text": "open_tool"
             },
             {
                 "type": "Action.OpenUrl",
@@ -666,6 +673,10 @@ def create_dynamic_form(data: Dict[str, Any]) -> Dict[str, Any]:
                 "errorMessage": f"Please select {label}"
             })
 
+    submit_data = { "action": "submit_dynamic_form" }
+    if "form_id" in data:
+        submit_data["form_id"] = data["form_id"]
+
     return {
         "type": "AdaptiveCard",
         "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
@@ -676,7 +687,9 @@ def create_dynamic_form(data: Dict[str, Any]) -> Dict[str, Any]:
             {
                 "type": "Action.Submit",
                 "title": "Submit",
-                "data": { "action": "submit_dynamic_form" }
+                "data": submit_data,
+                "text": "submit_dynamic_form",
+                "msteams": { "type": "imBack", "value": "submit_dynamic_form" }
             }
         ]
     }
