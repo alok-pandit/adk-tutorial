@@ -79,3 +79,21 @@ class PopupData(BaseModel):
     buttonTitle: str
     url: str
 
+class FormOption(BaseModel):
+    title: str
+    value: str
+
+class FormField(BaseModel):
+    id: str
+    type: str = Field(..., description="text, date, choice, checkbox, number")
+    label: str
+    placeholder: Optional[str] = None
+    isRequired: bool = False
+    options: Optional[List[FormOption]] = None
+    isMultiSelect: bool = False
+
+class DynamicFormData(BaseModel):
+    title: str = Field(..., description="Title of the dynamic form")
+    instructions: Optional[str] = None
+    fields: List[FormField]
+

@@ -584,13 +584,110 @@ def create_simple_card(data: Dict[str, Any]) -> Dict[str, Any]:
         ]
     }
 
+def create_dynamic_form(data: Dict[str, Any]) -> Dict[str, Any]:
+    title = data.get("title", "Dynamic Form")
+    instructions = data.get("instructions")
+    fields = data.get("fields", [])
+    
+    body = [
+        {
+            "type": "TextBlock",
+            "text": title,
+            "weight": "Bolder",
+            "size": "Large"
+        }
+    ]
+    
+    if instructions:
+        body.append({
+            "type": "TextBlock",
+            "text": instructions,
+            "wrap": True,
+            "isSubtle": True
+        })
+        
+    for field in fields:
+        field_id = field.get("id")
+        field_type = field.get("type", "text").lower()
+        label = field.get("label", field_id)
+        placeholder = field.get("placeholder", "")
+        is_required = field.get("isRequired", False)
+        
+        # Add Label
+        body.append({
+            "type": "TextBlock",
+            "text": label,
+            "weight": "Bolder",
+            "spacing": "Medium"
+        })
+        
+        # Add Input Element
+        if field_type == "text":
+            body.append({
+                "type": "Input.Text",
+                "id": field_id,
+                "placeholder": placeholder,
+                "isRequired": is_required,
+                "errorMessage": f"{label} is required"
+            })
+        elif field_type == "date":
+            body.append({
+                "type": "Input.Date",
+                "id": field_id,
+                "isRequired": is_required,
+                "errorMessage": f"{label} is required"
+            })
+        elif field_type == "number":
+             body.append({
+                "type": "Input.Number",
+                "id": field_id,
+                "placeholder": placeholder,
+                "isRequired": is_required,
+                "errorMessage": f"{label} is required"
+            })
+        elif field_type in ["choice", "checkbox"]:
+            choices = []
+            for opt in field.get("options", []):
+                choices.append({
+                    "title": opt.get("title", "Option"),
+                    "value": opt.get("value", "val")
+                })
+            
+            is_multi = field.get("isMultiSelect", False) or field_type == "checkbox"
+            style = "expanded" if field_type == "checkbox" else "compact"
+            
+            body.append({
+                "type": "Input.ChoiceSet",
+                "id": field_id,
+                "choices": choices,
+                "isMultiSelect": is_multi,
+                "style": style,
+                "isRequired": is_required,
+                "errorMessage": f"Please select {label}"
+            })
+
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "speak": f"Dynamic Form: {title}",
+        "body": body,
+        "actions": [
+            {
+                "type": "Action.Submit",
+                "title": "Submit",
+                "data": { "action": "submit_dynamic_form" }
+            }
+        ]
+    }
+
 @mcp.tool()
 def generate_adaptive_card(template: str, data: str) -> str:
     """
     Generates an Adaptive Card based on the specified template and data.
     
     Args:
-        template: The template type ('hero', 'alert', 'data_summary', 'form', 'list', 'simple', 'flight_update', 'weather', 'stock_update', 'calendar_invite', 'restaurant_details').
+        template: The template type ('hero', 'alert', 'data_summary', 'form', 'list', 'simple', 'flight_update', 'weather', 'stock_update', 'calendar_invite', 'restaurant_details', 'dynamic_form').
         data: A JSON string containing the data for the card.
     """
     try:
@@ -624,6 +721,8 @@ def generate_adaptive_card(template: str, data: str) -> str:
         card = create_popup_card(data_dict)
     elif template == "simple":
         card = create_simple_card(data_dict)
+    elif template == "dynamic_form":
+        card = create_dynamic_form(data_dict)
     else:
         # Default simple card fallback
         card = create_simple_card(data_dict)

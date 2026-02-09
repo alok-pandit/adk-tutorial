@@ -42,7 +42,7 @@ def get_data_report(report_type: str) -> DataSummaryData:
             trend="Up 15% YoY"
         )
 
-def get_feedback_form(context: str) -> FormData:
+def get_feedback_form(context: str = "general") -> FormData:
     """Returns a feedback form structure."""
     return FormData(title=f"Feedback for {context}")
 
