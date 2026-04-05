@@ -7,7 +7,7 @@ model=LiteLlm(
         extra_body={
             "skip_special_tokens": False,
             "chat_template_kwargs": {
-                "enable_thinking": False
+                "enable_thinking": True
             }
         },
     )
@@ -15,4 +15,4 @@ model=LiteLlm(
 class CalculationResult(BaseModel):
     """The result of a mathematical calculation."""
     result: float = Field(description="The numeric result of the calculation")
-    explanation: str = Field(description="A brief explanation for the user")    
+    explanation: str = Field(description="A detailed explanation for the user")
