@@ -12,7 +12,12 @@ model=LiteLlm(
         },
     )
 
+class MathStep(BaseModel):
+    """An individual step in a mathematical calculation."""
+    description: str = Field(description="A clear description of the operation (e.g., 'Added 2 to 3')")
+    result: float = Field(description="The numeric result of this specific operation")
+
 class CalculationResult(BaseModel):
     """The result of a mathematical calculation."""
-    explanation: str = Field(description="A detailed, step-by-step explanation using Markdown bullet points.")
-    result: float = Field(description="The final numerical result, which MUST match the last step in your explanation.")
+    steps: list[MathStep] = Field(description="A sequential list of EVERY calculation step performed using tools.")
+    final_result: float = Field(description="The final numerical result, which MUST match the result of the last step in your list exactly.")
