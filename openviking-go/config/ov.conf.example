@@ -1,0 +1,24 @@
+{
+  "storage": {
+    "workspace": "./workspace"
+  },
+  "log": {
+    "level": "INFO",
+    "output": "stdout"
+  },
+  "embedding": {
+    "dense": {
+      "provider": "litellm",
+      "model": "text-embedding-3-small",
+      "dimension": 1536,
+      "api_key": "your-litellm-or-openai-key"
+    },
+    "max_concurrent": 10
+  },
+  "vlm": {
+    "provider": "litellm",
+    "model": "gpt-4o-mini",
+    "api_key": "your-litellm-or-openai-key",
+    "max_concurrent": 100
+  }
+}
